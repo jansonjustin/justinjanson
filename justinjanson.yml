@@ -1,0 +1,42 @@
+services:
+  justinjanson:
+    image: registry.cluster.home/justinjanson:local #swarm-net docker image registry for instantly making images to all nodes
+
+    networks:
+      - swarm-net
+
+    env_file:
+      # FTP credentials and site config live here (not in git)
+      - justinjanson.env
+
+    environment:
+      - SITE_URL=https://justinjanson.com
+      - SITE_TITLE=Justin Janson
+
+    volumes:
+      - /mnt/hostess/media/projects/webdev/justinjanson.com/html:/var/www/html #stored on nfs drive
+
+      - /mnt/hostess/media/projects/webdev/justinjanson.com/blog:/blog:ro #blog posts go here
+
+      - /mnt/hostess/media/projects/webdev/justinjanson.com/projects:/projects:ro #projects go here
+
+      - /mnt/hostess/media/projects/webdev/justinjanson.com/db:/var/lib/sitedb #persist db so no build needed after restart
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.justinjanson.rule=Host(`justinjanson.cluster.home`)" #this is my private local access
+        - "traefik.http.routers.justinjanson.entrypoints=websecure"
+        - "traefik.http.routers.justinjanson.tls=true"
+        - "traefik.http.routers.justinjanson.tls.certresolver=step"
+        - "traefik.http.services.justinjanson-svc.loadbalancer.server.port=80"
+        - "traefik.http.routers.justinjanson.service=justinjanson-svc"
+
+networks:
+  swarm-net:
+    name: swarm-net
+    external: true

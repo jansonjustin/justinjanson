@@ -1,0 +1,20 @@
+# .pubfiles — defines what gets published to GitHub for project: justinjanson
+# Managed manually. Run 'pubcheck' to preview, 'gitpublish' to publish.
+#
+# Rules:
+#   - One entry per line. Blank lines and # comments are ignored.
+#   - Relative paths are resolved from this file's directory.
+#   - Absolute paths are copied by basename (Dockerfile, stack.yml, etc.)
+#   - Directories are copied recursively.
+#   - Glob patterns are supported (e.g. ./src/**/*.py)
+#
+# Examples:
+#   ./src/
+#   ./README.md
+#   /mnt/hostess/media/projects/dockerfiles/justinjanson/Dockerfile
+#   /mnt/hostess/media/projects/homelab/stacks/justinjanson.yml
+
+./
+/mnt/hostess/media/projects/homelab/stacks/justinjanson.yml
+/mnt/hostess/media/projects/webdev/justinjanson.com/html/*.*
+/mnt/hostess/media/projects/webdev/justinjanson.com/html/assets/style.css
