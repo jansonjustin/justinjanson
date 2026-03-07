@@ -14,7 +14,7 @@
  * 3. Multipart POST (from web UI):
  *    Content-Type: multipart/form-data, field: "file"
  *
- * Optional token auth: set DRAWING_TOKEN in justinjanson.env eventually
+ * Optional token auth: set DRAWING_TOKEN in justinjanson.env
  * Access at: https://justinjanson.cluster.home/upload.php
  */
 
@@ -152,6 +152,14 @@ function fmt_size(int $bytes): string {
     if ($bytes < 1024) return $bytes . ' B';
     if ($bytes < 1048576) return round($bytes / 1024, 1) . ' KB';
     return round($bytes / 1048576, 1) . ' MB';
+}
+
+function is_video(string $name): bool {
+    return (bool) preg_match('/\.(mp4|webm|mov|ogg)$/i', $name);
+}
+
+function is_image(string $name): bool {
+    return (bool) preg_match('/\.(svg|png|jpg|jpeg|gif|webp)$/i', $name);
 }
 ?><!DOCTYPE html>
 <html lang="en">
@@ -309,7 +317,7 @@ function fmt_size(int $bytes): string {
 
   <header class="page-header">
     <span class="eyebrow">Assets</span>
-    <h1>Upload images</h1>
+    <h1>Upload files</h1>
     <p>Files are saved to <code>/assets/img/</code> and usable in markdown immediately.</p>
   </header>
 
@@ -323,10 +331,10 @@ function fmt_size(int $bytes): string {
 
   <!-- Drop zone — click anywhere on it to browse on desktop -->
   <div class="dropzone" id="dropzone">
-    <input type="file" id="fileInput" multiple accept="image/*,.svg">
+    <input type="file" id="fileInput" multiple accept="image/*,.svg,video/*">
     <span class="dropzone__icon">⬆</span>
     <div class="dropzone__title">Drop files here</div>
-    <div class="dropzone__sub">SVG · PNG · JPG · GIF · WEBP</div>
+    <div class="dropzone__sub">SVG · PNG · JPG · GIF · WEBP · MP4 · WEBM · MOV</div>
   </div>
 
   <!-- Explicit browse button — clearer tap target on Android -->
@@ -343,13 +351,16 @@ function fmt_size(int $bytes): string {
     <li class="empty" id="emptyState">No files yet.</li>
     <?php else: ?>
     <?php foreach ($existingFiles as $f):
-      $isImg = preg_match('/\.(svg|png|jpg|jpeg|gif|webp)$/i', $f['name']);
-      $path  = '/assets/img/' . htmlspecialchars($f['name']);
-      $md    = '![' . htmlspecialchars(pathinfo($f['name'], PATHINFO_FILENAME)) . '](' . $path . ')';
+      $path = '/assets/img/' . htmlspecialchars($f['name']);
+      $ext  = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
+      $stem = pathinfo($f['name'], PATHINFO_FILENAME);
+      $md   = '![' . htmlspecialchars($stem) . '](' . $path . ')';
     ?>
     <li class="file-item">
-      <?php if ($isImg): ?>
+      <?php if (is_image($f['name'])): ?>
         <img src="<?= $path ?>" class="file-thumb" alt="" loading="lazy">
+      <?php elseif (is_video($f['name'])): ?>
+        <div class="file-thumb-icon">▶</div>
       <?php else: ?>
         <div class="file-thumb-icon">📄</div>
       <?php endif; ?>
@@ -384,7 +395,7 @@ function fmt_size(int $bytes): string {
   const browseInput = document.createElement('input');
   browseInput.type     = 'file';
   browseInput.multiple = true;
-  browseInput.accept   = 'image/*,.svg';
+  browseInput.accept   = 'image/*,.svg,video/*';
   browseInput.style.display = 'none';
   document.body.appendChild(browseInput);
 
@@ -471,19 +482,35 @@ function fmt_size(int $bytes): string {
     });
   }
 
+  function isVideo(filename) {
+    return /\.(mp4|webm|mov|ogg)$/i.test(filename);
+  }
+
+  function isImage(filename) {
+    return /\.(svg|png|jpg|jpeg|gif|webp)$/i.test(filename);
+  }
+
   function prependFile(filename, size, path) {
     document.getElementById('emptyState')?.remove();
     fileCount++;
     filesHeader.textContent = fileCount + ' file' + (fileCount !== 1 ? 's' : '') + ' in /assets/img/';
 
-    const isImg = /\.(svg|png|jpg|jpeg|gif|webp)$/i.test(filename);
-    const md    = `![${filename.replace(/\.[^.]+$/, '')}](${path})`;
-    const sz    = size < 1024 ? size + ' B' : size < 1048576 ? (size/1024).toFixed(1) + ' KB' : (size/1048576).toFixed(1) + ' MB';
-    const now   = new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+    const md  = `![${filename.replace(/\.[^.]+$/, '')}](${path})`;
+    const sz  = size < 1024 ? size + ' B' : size < 1048576 ? (size/1024).toFixed(1) + ' KB' : (size/1048576).toFixed(1) + ' MB';
+    const now = new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+
+    let thumbHtml;
+    if (isImage(filename)) {
+      thumbHtml = `<img src="${path}" class="file-thumb" alt="" loading="lazy">`;
+    } else if (isVideo(filename)) {
+      thumbHtml = `<div class="file-thumb-icon">▶</div>`;
+    } else {
+      thumbHtml = `<div class="file-thumb-icon">📄</div>`;
+    }
 
     const li = document.createElement('li');
     li.className = 'file-item';
-    li.innerHTML = (isImg ? `<img src="${path}" class="file-thumb" alt="" loading="lazy">` : `<div class="file-thumb-icon">📄</div>`)
+    li.innerHTML = thumbHtml
       + `<div class="file-info"><div class="file-name">${filename}</div><div class="file-meta">${sz} &middot; ${now}</div></div>`
       + `<button class="copy-btn" onclick="copyMd(this, ${JSON.stringify(md)})">Copy md</button>`;
     fileList.prepend(li);

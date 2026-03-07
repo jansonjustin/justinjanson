@@ -656,6 +656,28 @@ main {
   margin-bottom: var(--space-xs);
 }
 
+/* Video embeds — rendered from ![alt](video.mp4) syntax */
+.video-wrap {
+  margin: var(--space-xl) 0;
+}
+
+.video-wrap video {
+  width: 100%;
+  display: block;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  background: #000;
+}
+
+.video-caption {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-weight: 300;
+  font-style: italic;
+  margin-top: var(--space-sm);
+  margin-bottom: 0;
+}
+
 /* Back navigation link above post */
 .back-link {
   display: inline-flex;
@@ -723,11 +745,21 @@ main {
   transform: scaleX(1);
 }
 
-/* Stretched link — invisible anchor covers the whole card */
-.project-card__detail-link {
+/* Stretched link — ::after covers the whole card; actual link text is in the title */
+.project-card__title-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.project-card__title-link::after {
   position: absolute;
   inset: 0;
   z-index: 0;
+  content: "";
+}
+
+.project-card:hover .project-card__title-link {
+  color: var(--accent);
 }
 
 .project-card__title {
@@ -736,11 +768,7 @@ main {
   font-weight: 600;
   color: var(--text);
   transition: color var(--duration) var(--ease);
-  position: relative; /* sit above the stretched link visually */
-}
-
-.project-card:hover .project-card__title {
-  color: var(--accent);
+  position: relative;
 }
 
 .project-card__desc {

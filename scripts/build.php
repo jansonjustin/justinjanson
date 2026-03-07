@@ -32,6 +32,10 @@
  *   status: active | wip | archive    (default: active)
  *   link: https://github.com/...      (optional external link)
  *
+ * Video in markdown (blog posts and projects):
+ *   ![My caption](/assets/img/demo.mp4)
+ *   Supported formats: mp4, webm, mov, ogg
+ *
  * ============================================================
  */
 
@@ -119,7 +123,7 @@ $parsedown->setSafeMode(false); // Allow raw HTML in markdown if needed
 
 // ── Helper: parse frontmatter from a .md file ─────────────────
 /**
- * Returns ['frontmatter' => [...], 'body' => '...']
+ * Returns ['meta' => [...], 'body' => '...']
  * Frontmatter block is delimited by --- on its own line.
  * Each line inside is "key: value".
  */
@@ -293,6 +297,45 @@ function inline_svgs(string $html): string {
     );
 }
 
+/**
+ * Converts <img src="*.mp4|webm|mov|ogg"> tags (produced by Parsedown
+ * from ![alt](video.mp4) syntax) into styled <video> elements.
+ *
+ * Usage in markdown:
+ *   ![My caption](/assets/img/demo.mp4)
+ *
+ * The alt text becomes an optional italic caption rendered below the player.
+ * Falls back gracefully in browsers that don't support the format.
+ *
+ * NOTE: Run inline_svgs() before this so SVG files are already handled
+ * and won't be accidentally matched by this regex.
+ */
+function inline_videos(string $html): string {
+    return preg_replace_callback(
+        '/<img\b([^>]*)\bsrc=["\']([^"\']+\.(?:mp4|webm|mov|ogg))["\']([^>]*)>/i',
+        function (array $m) {
+            [, $before, $src, $after] = $m;
+
+            $allAttrs = $before . $after;
+            $alt = '';
+            if (preg_match('/\balt=["\']([^"\']*)["\']/', $allAttrs, $altMatch)) {
+                $alt = htmlspecialchars($altMatch[1], ENT_QUOTES);
+            }
+
+            $caption = $alt ? "<p class=\"video-caption\">{$alt}</p>" : '';
+            $safeSrc  = htmlspecialchars($src, ENT_QUOTES);
+
+            return '<div class="video-wrap">'
+                 . "<video controls playsinline preload=\"metadata\" src=\"{$safeSrc}\">"
+                 . 'Your browser does not support video.'
+                 . '</video>'
+                 . $caption
+                 . '</div>';
+        },
+        $html
+    );
+}
+
 
 // ════════════════════════════════════════════════════════════
 //  BLOG POSTS
@@ -309,7 +352,7 @@ foreach ($blogFiles as $filepath) {
     $meta     = $parsed['meta'];
     $bodyMd   = $parsed['body'];
     $bodyHtml = $parsedown->text($bodyMd);
-    $bodyHtml = inline_svgs($bodyHtml);
+    $bodyHtml = inline_videos(inline_svgs($bodyHtml));
 
     // Fallback values for missing frontmatter
     $title       = $meta['title']       ?? ucwords(str_replace('-', ' ', $slug));
@@ -481,7 +524,7 @@ foreach ($projectFiles as $filepath) {
     $meta     = $parsed['meta'];
     $bodyMd   = $parsed['body'];
     $bodyHtml = $parsedown->text($bodyMd);
-    $bodyHtml = inline_svgs($bodyHtml);
+    $bodyHtml = inline_videos(inline_svgs($bodyHtml));
 
     $title       = $meta['title']       ?? ucwords(str_replace('-', ' ', $slug));
     $date        = $meta['date']        ?? date('Y-m-d', filemtime($filepath));
@@ -648,8 +691,9 @@ if (empty($projects)) {
 
         $gridHtml .= <<<HTML
           <article class="project-card fade-in">
-            <a href="{$detailUrl}" class="project-card__detail-link" aria-label="{$title}"></a>
-            <h2 class="project-card__title">{$title}</h2>
+            <h2 class="project-card__title">
+              <a href="{$detailUrl}" class="project-card__title-link">{$title}</a>
+            </h2>
             <p class="project-card__desc">{$desc}</p>
             <div class="project-card__footer">
               <div class="project-card__tags">{$tagHtml}</div>
